@@ -1,0 +1,20 @@
+/* ── Cyber-RAM · módulo de Waybar ───────────────────────── */
+#custom-cyber-ram {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  color: #00c8e0;
+  background: transparent;
+  padding: 0 10px;
+}
+
+#custom-cyber-ram.normal   { color: #00c8e0; }
+#custom-cyber-ram.warning  { color: #ffcc00; }
+#custom-cyber-ram.critical {
+  color: #ff3c3c;
+  animation: cyber-ram-blink 1s step-end infinite;
+}
+
+@keyframes cyber-ram-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}

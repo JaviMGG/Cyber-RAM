@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>CYBERDECK RAM</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@600;700&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background:#0a0808;
+    font-family:'Share Tech Mono',monospace;
+    color:#ff3c3c;
+    width:580px;
+    padding:18px 20px 20px;
+    border:1px solid #2a1010;
+    position:relative;
+    overflow:hidden;
+  }
+  body::before {
+    content:''; position:fixed; inset:0;
+    background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,40,40,0.01) 2px,rgba(255,40,40,0.01) 4px);
+    pointer-events:none; z-index:0;
+  }
+  .co { position:absolute; width:10px; height:10px; border-color:#ff3c3c; border-style:solid; opacity:.45; }
+  .tl{top:5px;left:5px;border-width:2px 0 0 2px}
+  .tr{top:5px;right:5px;border-width:2px 2px 0 0}
+  .bl{bottom:5px;left:5px;border-width:0 0 2px 2px}
+  .br{bottom:5px;right:5px;border-width:0 2px 2px 0}
+
+  .hdr { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+  .ttl { font-family:'Rajdhani',sans-serif; font-size:22px; font-weight:700; color:#ff3c3c; letter-spacing:3px; }
+  .sub { font-size:10px; color:#ff3c3c; opacity:.45; letter-spacing:1px; margin-top:2px; }
+  .sys { font-size:10px; color:#ff3c3c; line-height:1.5; opacity:.6; text-align:right; }
+
+  .sw { border-top:1px solid rgba(255,60,60,0.15); border-bottom:1px solid rgba(255,60,60,0.15); padding:5px 0 3px; margin:8px 0 10px; }
+
+  .ft { display:flex; justify-content:space-between; align-items:center; }
+  .st { display:flex; gap:18px; }
+  .sl { font-size:10px; color:#ff3c3c; letter-spacing:1px; opacity:.7; }
+  .sv { font-size:13px; color:#00c8e0; }
+  .sv.w { color:#ff3c3c; animation:blink 1s step-end infinite; }
+
+  .wb { margin-top:10px; background:#ff3c3c; color:#1a0000; font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:700; letter-spacing:3px; padding:5px 12px; display:none; align-items:center; gap:10px; }
+  .wb.on { display:flex; animation:blink 1s step-end infinite; }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+</style>
+</head>
+<body>
+  <div class="co tl"></div><div class="co tr"></div>
+  <div class="co bl"></div><div class="co br"></div>
+
+  <div class="hdr">
+    <div>
+      <div class="ttl">CYBERDECK RAM</div>
+      <div class="sub">RESOURCES V.2304.900 // MEMORY STATUS</div>
+    </div>
+    <div class="sys" id="sys">CARGANDO...</div>
+  </div>
+
+  <div class="sw">
+    <svg id="rsvg" width="100%" height="44" style="display:block"></svg>
+  </div>
+
+  <div class="ft">
+    <div class="st">
+      <div><div class="sl">USADA</div><div class="sv" id="su">—</div></div>
+      <div><div class="sl">DISPONIBLE</div><div class="sv" id="sf">—</div></div>
+      <div><div class="sl">TOTAL</div><div class="sv" id="st2">—</div></div>
+      <div><div class="sl">USO</div><div class="sv" id="sp">—</div></div>
+    </div>
+  </div>
+  <div class="wb" id="wb">⚠ MEMORIA INSUFICIENTE</div>
+
+  <script>
+  /* ══════════════════════════════════════════════
+     CONFIGURACIÓN — edita aquí
+  ══════════════════════════════════════════════ */
+  const CONFIG = {
+    SLOTS:       45,      // número de chips (igual que CYBERDECK RAM: 45/45 en CP2077)
+    WARN_PCT:    80,      // % a partir del cual se muestra la alerta
+    brillo:      true,    // true = glow en chips libres | false = sin efecto (más ligero)
+    INTERVAL_MS: 2000,    // frecuencia de refresco en ms
+  };
+  /* ══════════════════════════════════════════════ */
+
+  function chipPath(x, y, w, h, notch) {
+    // Rectángulo con la esquina superior derecha cortada en diagonal
+    return `M${x},${y} L${x+w-notch},${y} L${x+w},${y+notch} L${x+w},${y+h} L${x},${y+h} Z`;
+  }
+
+  function fmt(bytes) {
+    const gb = bytes / 1073741824;
+    return gb >= 1 ? gb.toFixed(1)+' GB' : Math.round(bytes/1048576)+' MB';
+  }
+
+  async function fetchRAM() {
+    try {
+      const r = await fetch('/proc/meminfo');
+      if (!r.ok) throw new Error();
+      const text = await r.text();
+      const get = k => { const m = text.match(new RegExp(k+'\\s*:\\s*(\\d+)')); return m ? parseInt(m[1])*1024 : 0; };
+      return { total: get('MemTotal'), available: get('MemAvailable'), used: get('MemTotal')-get('MemAvailable') };
+    } catch {
+      // Fallback (entorno de previsualización / sin acceso al sistema de archivos):
+      // valores pasados por query string desde ram-popup.py
+      const p = new URLSearchParams(location.search);
+      const total = parseInt(p.get('total') || '34359738368');
+      const used  = parseInt(p.get('used')  || '13743895347');
+      return { total, used, available: total-used };
+    }
+  }
+
+  function renderChips(usedPct) {
+    const svg   = document.getElementById('rsvg');
+    const W     = svg.clientWidth || 540;
+    const SLOTS = CONFIG.SLOTS;
+    const gap   = 3;
+    const notch = 5;
+    const chipH = 34;
+    const pinH  = 5;
+    const pinWf = 0.55;
+    const topPad= 4;
+    const slotW = (W - gap * (SLOTS - 1)) / SLOTS;
+    const usedSl = Math.round(SLOTS * usedPct / 100);
+
+    let out = '<defs>';
+    if (CONFIG.brillo) {
+      out += `<filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>`;
+    }
+    out += '</defs>';
+
+    for (let i = 0; i < SLOTS; i++) {
+      // Se llenan de derecha a izquierda: libre = izquierda, ocupado = derecha
+      const isFree = i < (SLOTS - usedSl);
+      const cx = i * (slotW + gap);
+      const cy = topPad;
+      const pw = slotW * pinWf;
+      const px = cx + slotW * (1 - pinWf) / 2;
+      const py = cy + chipH;
+
+      if (isFree) {
+        const filter = CONFIG.brillo ? ' filter="url(#glow)"' : '';
+        out += `<path d="${chipPath(cx, cy, slotW, chipH, notch)}" fill="#00c8e0" stroke="#5af0ff" stroke-width="0.5"${filter}/>`;
+        out += `<line x1="${cx+1}" y1="${cy+3}" x2="${cx+slotW-notch-1}" y2="${cy+3}" stroke="rgba(255,255,255,0.35)" stroke-width="1" stroke-linecap="round"/>`;
+        out += `<rect x="${px}" y="${py}" width="${pw}" height="${pinH}" fill="#00c8e0" stroke="#5af0ff" stroke-width="0.5"/>`;
+      } else {
+        out += `<path d="${chipPath(cx, cy, slotW, chipH, notch)}" fill="rgba(30,0,0,0.3)" stroke="#cc1a1a" stroke-width="0.7"/>`;
+        out += `<rect x="${px}" y="${py}" width="${pw}" height="${pinH}" fill="none" stroke="#cc1a1a" stroke-width="0.7"/>`;
+      }
+    }
+
+    svg.setAttribute('height', topPad + chipH + pinH);
+    svg.innerHTML = out;
+  }
+
+  function render({ total, used, available }) {
+    const pct  = Math.round((used / total) * 100);
+    const warn = pct >= CONFIG.WARN_PCT;
+
+    document.getElementById('sys').innerHTML = `USADA: ${fmt(used)}<br>LIBRE: ${fmt(available)}<br>TOTAL: ${fmt(total)}`;
+    document.getElementById('su').textContent  = fmt(used);
+    document.getElementById('sf').textContent  = fmt(available);
+    document.getElementById('st2').textContent = fmt(total);
+    document.getElementById('sp').textContent  = pct + '%';
+    document.getElementById('sf').className    = 'sv' + (warn ? ' w' : '');
+    document.getElementById('wb').className    = 'wb' + (warn ? ' on' : '');
+
+    renderChips(pct);
+  }
+
+  async function update() { render(await fetchRAM()); }
+
+  update();
+  setInterval(update, CONFIG.INTERVAL_MS);
+  window.addEventListener('resize', () => fetchRAM().then(render));
+  </script>
+</body>
+</html>

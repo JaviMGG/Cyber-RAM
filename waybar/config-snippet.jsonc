@@ -1,0 +1,10 @@
+{
+  "custom/cyber-ram": {
+    "exec": "~/.config/waybar/scripts/ram-status.sh",
+    "interval": 5,
+    "return-type": "json",
+    "format": "󰍛 {}",
+    "on-click": "python3 ~/.config/waybar/scripts/ram-popup.py",
+    "tooltip": true
+  }
+}

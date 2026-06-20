@@ -92,12 +92,12 @@ Cyber-RAM/
 
 - [Waybar](https://github.com/Alexays/Waybar) compilado con soporte para módulos `custom`
 - `bash`, `awk`, `free` (paquete `procps-ng`, viene por defecto en casi todas las distros)
-- Para el popup interactivo: `python-gobject` y `webkit2gtk`
+- Para el popup interactivo: `python-gobject` y `webkit2gtk-4.1`
 
 En **Arch / CachyOS**:
 
 ```bash
-sudo pacman -S waybar python-gobject webkit2gtk
+sudo pacman -S waybar python-gobject webkit2gtk-4.1
 ```
 
 Fuentes opcionales para el look exacto (Share Tech Mono + Rajdhani se cargan vía Google Fonts automáticamente si hay conexión; si prefieres tenerlas localmente):

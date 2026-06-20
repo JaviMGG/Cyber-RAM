@@ -16,7 +16,7 @@ c_green='\033[0;32m'
 c_reset='\033[0m'
 
 echo -e "${c_cyan}╔══════════════════════════════════════╗${c_reset}"
-echo -e "${c_cyan}║          CYBER-RAM · INSTALADOR       ║${c_reset}"
+echo -e "${c_cyan}║        CYBER-RAM · INSTALADOR        ║${c_reset}"
 echo -e "${c_cyan}╚══════════════════════════════════════╝${c_reset}"
 echo
 
@@ -24,15 +24,17 @@ echo
 missing=()
 command -v waybar >/dev/null 2>&1 || missing+=("waybar")
 command -v python3 >/dev/null 2>&1 || missing+=("python3")
-python3 -c "import gi; gi.require_version('Gtk','3.0'); gi.require_version('WebKit2','4.0')" >/dev/null 2>&1 \
-  || missing+=("python-gobject + webkit2gtk")
+command -v awk    >/dev/null 2>&1 || missing+=("awk (gawk)")
+command -v free   >/dev/null 2>&1 || missing+=("free (procps-ng)")
+python3 -c "import gi; gi.require_version('Gtk','3.0'); gi.require_version('WebKit2','4.1')" >/dev/null 2>&1 \
+  || missing+=("python-gobject + webkit2gtk-4.1")
 
 if [ "${#missing[@]}" -gt 0 ]; then
   echo -e "${c_red}⚠ Faltan dependencias:${c_reset}"
   printf '  - %s\n' "${missing[@]}"
   echo
   echo "En Arch / CachyOS:"
-  echo "  sudo pacman -S waybar python-gobject webkit2gtk"
+  echo "  sudo pacman -S waybar python-gobject webkit2gtk-4.1"
   echo
   read -r -p "¿Continuar de todas formas? [y/N] " ans
   [[ "$ans" =~ ^[Yy]$ ]] || exit 1

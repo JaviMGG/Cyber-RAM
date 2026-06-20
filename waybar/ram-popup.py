@@ -22,6 +22,8 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("WebKit2", "4.1")
 from gi.repository import Gdk, GLib, Gtk, WebKit2
 
+PID_FILE = "/tmp/cyber-ram-popup.pid"
+
 WINDOW_WIDTH = 400
 WINDOW_HEIGHT = 120
 
@@ -100,6 +102,20 @@ def reposition_window():
 
 
 def main():
+    # ── Singleton / toggle ────────────────────────────────
+    if os.path.exists(PID_FILE):
+        with open(PID_FILE) as f:
+            old_pid = int(f.read().strip())
+        try:
+            os.kill(old_pid, 0)         # ¿sigue vivo?
+            os.kill(old_pid, 15)        # sí → lo matamos (toggle off)
+            os.remove(PID_FILE)
+            return
+        except (OSError, ProcessLookupError):
+            pass                        # muerto, seguimos
+    with open(PID_FILE, "w") as f:
+        f.write(str(os.getpid()))
+
     total, used, available = get_ram()
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -139,17 +155,15 @@ def main():
     GLib.idle_add(reposition_window)
     webview.load_uri(uri)
 
-    win.connect("destroy", Gtk.main_quit)
-
     def cleanup(*_):
-        pid_file = "/tmp/cyber-ram-popup.pid"
-        if os.path.exists(pid_file):
-            with open(pid_file) as f:
+        if os.path.exists(PID_FILE):
+            with open(PID_FILE) as f:
                 saved_pid = int(f.read().strip())
                 if saved_pid == os.getpid():
-                    os.remove(pid_file)
+                    os.remove(PID_FILE)
 
     win.connect("destroy", cleanup)
+    win.connect("destroy", Gtk.main_quit)
 
     win.show_all()
     Gtk.main()

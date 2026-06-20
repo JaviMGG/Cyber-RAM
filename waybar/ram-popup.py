@@ -2,38 +2,101 @@
 """
 ram-popup.py
 
-Lanza una ventana sin bordes con el popup visual de Cyber-RAM,
-inyectando los datos reales de /proc/meminfo en la URL.
-Se cierra automáticamente al perder el foco o al pulsar Escape.
+Lanza una ventana sin bordes con el popup visual de Cyber-RAM.
+Se posiciona debajo de la waybar en el lado derecho mediante regla de Hyprland.
+Se cierra solo desde el toggle de waybar.
 
 Dependencias (Arch / CachyOS):
-    sudo pacman -S python-gobject webkit2gtk
+    sudo pacman -S python-gobject webkit2gtk-4.1
 """
 
+import json
 import os
+import subprocess
 import sys
 
 import gi
 
 gi.require_version("Gtk", "3.0")
-gi.require_version("WebKit2", "4.0")
-from gi.repository import Gdk, Gtk, WebKit2
+gi.require_version("Gdk", "3.0")
+gi.require_version("WebKit2", "4.1")
+from gi.repository import Gdk, GLib, Gtk, WebKit2
 
-WINDOW_WIDTH = 600
-WINDOW_HEIGHT = 190
+WINDOW_WIDTH = 400
+WINDOW_HEIGHT = 120
+
+REFRESH_MS = 2500
+
+
+def add_window_rule():
+    try:
+        monitors = subprocess.run(
+            ["hyprctl", "monitors", "-j"],
+            capture_output=True, text=True, timeout=5,
+        )
+        monitors_data = json.loads(monitors.stdout)
+        active = None
+        for m in monitors_data:
+            if m.get("focused", False):
+                active = m
+                break
+        if not active and monitors_data:
+            active = monitors_data[0]
+        if active:
+            scale = active.get("scale", 1)
+            logical_w = int(active["width"] / scale)
+            x = active["x"] + logical_w - WINDOW_WIDTH
+            y = active["y"] + 33
+            title = "^CYBERDECK RAM$"
+            subprocess.run(
+                ["hyprctl", "--batch",
+                 f"keyword windowrule float,title:{title} ; "
+                 f"keyword windowrule pin,title:{title} ; "
+                 f"keyword windowrule move {x} {y},title:{title} ; "
+                 f"keyword windowrule size {WINDOW_WIDTH} {WINDOW_HEIGHT},title:{title}"],
+                capture_output=True, text=True, timeout=5,
+            )
+    except Exception:
+        pass
 
 
 def get_ram():
-    info = {}
-    with open("/proc/meminfo", encoding="utf-8") as f:
-        for line in f:
-            key, value = line.split(":")
-            info[key.strip()] = int(value.split()[0]) * 1024  # kB -> bytes
-
-    total = info["MemTotal"]
-    available = info["MemAvailable"]
-    used = total - available
+    out = subprocess.check_output(["free", "-b"]).decode()
+    parts = out.splitlines()[1].split()
+    total = int(parts[1])
+    used = int(parts[2])
+    available = int(parts[6])
     return total, used, available
+
+
+def reposition_window():
+    try:
+        monitors = subprocess.run(
+            ["hyprctl", "monitors", "-j"],
+            capture_output=True, text=True, timeout=5,
+        )
+        monitors_data = json.loads(monitors.stdout)
+        active = None
+        for m in monitors_data:
+            if m.get("focused", False):
+                active = m
+                break
+        if not active and monitors_data:
+            active = monitors_data[0]
+        if active:
+            scale = active.get("scale", 1)
+            logical_w = int(active["width"] / scale)
+            x = active["x"] + logical_w - WINDOW_WIDTH
+            y = active["y"] + 33
+            title = "^CYBERDECK RAM$"
+            subprocess.run(
+                ["hyprctl", "--batch",
+                 f"dispatch movewindow pixel '{x} {y}',title:{title} ; "
+                 f"dispatch resizewindow pixel '{WINDOW_WIDTH} {WINDOW_HEIGHT}',title:{title}"],
+                capture_output=True, text=True, timeout=5,
+            )
+    except Exception:
+        pass
 
 
 def main():
@@ -51,12 +114,12 @@ def main():
     win = Gtk.Window()
     win.set_title("CYBERDECK RAM")
     win.set_default_size(WINDOW_WIDTH, WINDOW_HEIGHT)
+    win.set_size_request(WINDOW_WIDTH, WINDOW_HEIGHT)
     win.set_resizable(False)
     win.set_decorated(False)
     win.set_keep_above(True)
-    win.set_position(Gtk.WindowPosition.MOUSE)
+    win.set_position(Gtk.WindowPosition.NONE)
 
-    # Fondo transparente (si el compositor de Wayland lo soporta)
     screen = win.get_screen()
     visual = screen.get_rgba_visual()
     if visual is not None:
@@ -64,15 +127,29 @@ def main():
     win.set_app_paintable(True)
 
     webview = WebKit2.WebView()
-    webview.load_uri(uri)
     win.add(webview)
 
-    win.connect("focus-out-event", lambda *_: Gtk.main_quit())
-    win.connect(
-        "key-press-event",
-        lambda _w, e: Gtk.main_quit() if e.keyval == Gdk.KEY_Escape else None,
-    )
+    def update_ram():
+        t, u, a = get_ram()
+        new_uri = f"file://{html_path}?total={t}&used={u}&available={a}"
+        webview.load_uri(new_uri)
+        return True
+
+    GLib.timeout_add(REFRESH_MS, update_ram)
+    GLib.idle_add(reposition_window)
+    webview.load_uri(uri)
+
     win.connect("destroy", Gtk.main_quit)
+
+    def cleanup(*_):
+        pid_file = "/tmp/cyber-ram-popup.pid"
+        if os.path.exists(pid_file):
+            with open(pid_file) as f:
+                saved_pid = int(f.read().strip())
+                if saved_pid == os.getpid():
+                    os.remove(pid_file)
+
+    win.connect("destroy", cleanup)
 
     win.show_all()
     Gtk.main()

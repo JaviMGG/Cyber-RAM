@@ -2,17 +2,16 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>CYBERDECK RAM</title>
+<title>Cyber-RAM</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@600;700&display=swap');
   * { margin:0; padding:0; box-sizing:border-box; }
 
   body {
     background:#0a0808;
-    font-family:'Share Tech Mono',monospace;
+    font-family:'Courier New',monospace;
     color:#ff3c3c;
-    width:580px;
-    padding:18px 20px 20px;
+    width:400px;
+    padding:4px 8px 5px;
     border:1px solid #2a1010;
     position:relative;
     overflow:hidden;
@@ -22,26 +21,26 @@
     background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,40,40,0.01) 2px,rgba(255,40,40,0.01) 4px);
     pointer-events:none; z-index:0;
   }
-  .co { position:absolute; width:10px; height:10px; border-color:#ff3c3c; border-style:solid; opacity:.45; }
-  .tl{top:5px;left:5px;border-width:2px 0 0 2px}
-  .tr{top:5px;right:5px;border-width:2px 2px 0 0}
-  .bl{bottom:5px;left:5px;border-width:0 0 2px 2px}
-  .br{bottom:5px;right:5px;border-width:0 2px 2px 0}
+  .co { position:absolute; width:6px; height:6px; border-color:#ff3c3c; border-style:solid; opacity:.45; }
+  .tl{top:3px;left:3px;border-width:1px 0 0 1px}
+  .tr{top:3px;right:3px;border-width:1px 1px 0 0}
+  .bl{bottom:3px;left:3px;border-width:0 0 1px 1px}
+  .br{bottom:3px;right:3px;border-width:0 1px 1px 0}
 
-  .hdr { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
-  .ttl { font-family:'Rajdhani',sans-serif; font-size:22px; font-weight:700; color:#ff3c3c; letter-spacing:3px; }
-  .sub { font-size:10px; color:#ff3c3c; opacity:.45; letter-spacing:1px; margin-top:2px; }
-  .sys { font-size:10px; color:#ff3c3c; line-height:1.5; opacity:.6; text-align:right; }
+  .hdr { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:2px; }
+  .ttl { font-family:'Arial',sans-serif; font-size:16px; font-weight:700; color:#ff3c3c; letter-spacing:2px; }
+  .sub { font-size:10px; color:#ff3c3c; opacity:.45; letter-spacing:1px; }
+  .sys { font-size:10px; color:#ff3c3c; line-height:1.4; opacity:.6; text-align:right; }
 
-  .sw { border-top:1px solid rgba(255,60,60,0.15); border-bottom:1px solid rgba(255,60,60,0.15); padding:5px 0 3px; margin:8px 0 10px; }
+  .sw { border-top:1px solid rgba(255,60,60,0.15); border-bottom:1px solid rgba(255,60,60,0.15); padding:1px 0 1px; margin:2px 0 3px; }
 
   .ft { display:flex; justify-content:space-between; align-items:center; }
-  .st { display:flex; gap:18px; }
+  .st { display:flex; gap:10px; }
   .sl { font-size:10px; color:#ff3c3c; letter-spacing:1px; opacity:.7; }
   .sv { font-size:13px; color:#00c8e0; }
   .sv.w { color:#ff3c3c; animation:blink 1s step-end infinite; }
 
-  .wb { margin-top:10px; background:#ff3c3c; color:#1a0000; font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:700; letter-spacing:3px; padding:5px 12px; display:none; align-items:center; gap:10px; }
+  .wb { margin-top:6px; background:#ff3c3c; color:#1a0000; font-family:'Arial',sans-serif; font-size:10px; font-weight:700; letter-spacing:2px; padding:3px 8px; display:none; align-items:center; gap:6px; }
   .wb.on { display:flex; animation:blink 1s step-end infinite; }
 
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
@@ -53,14 +52,14 @@
 
   <div class="hdr">
     <div>
-      <div class="ttl">CYBERDECK RAM</div>
-      <div class="sub">RESOURCES V.2304.900 // MEMORY STATUS</div>
+      <div class="ttl">Cyber-RAM</div>
+      <div class="sub">MEMORY STATUS</div>
     </div>
     <div class="sys" id="sys">CARGANDO...</div>
   </div>
 
   <div class="sw">
-    <svg id="rsvg" width="100%" height="44" style="display:block"></svg>
+    <svg id="rsvg" width="100%" height="24" style="display:block"></svg>
   </div>
 
   <div class="ft">
@@ -78,7 +77,7 @@
      CONFIGURACIÓN — edita aquí
   ══════════════════════════════════════════════ */
   const CONFIG = {
-    SLOTS:       45,      // número de chips (igual que CYBERDECK RAM: 45/45 en CP2077)
+    SLOTS:       16,      // número de chips visuales
     WARN_PCT:    80,      // % a partir del cual se muestra la alerta
     brillo:      true,    // true = glow en chips libres | false = sin efecto (más ligero)
     INTERVAL_MS: 2000,    // frecuencia de refresco en ms
@@ -95,33 +94,23 @@
     return gb >= 1 ? gb.toFixed(1)+' GB' : Math.round(bytes/1048576)+' MB';
   }
 
-  async function fetchRAM() {
-    try {
-      const r = await fetch('/proc/meminfo');
-      if (!r.ok) throw new Error();
-      const text = await r.text();
-      const get = k => { const m = text.match(new RegExp(k+'\\s*:\\s*(\\d+)')); return m ? parseInt(m[1])*1024 : 0; };
-      return { total: get('MemTotal'), available: get('MemAvailable'), used: get('MemTotal')-get('MemAvailable') };
-    } catch {
-      // Fallback (entorno de previsualización / sin acceso al sistema de archivos):
-      // valores pasados por query string desde ram-popup.py
-      const p = new URLSearchParams(location.search);
-      const total = parseInt(p.get('total') || '34359738368');
-      const used  = parseInt(p.get('used')  || '13743895347');
-      return { total, used, available: total-used };
-    }
+  function getRAMFromURL() {
+    const p = new URLSearchParams(location.search);
+    const total = parseInt(p.get('total') || '34359738368');
+    const used  = parseInt(p.get('used')  || '13743895347');
+    return { total, used, available: total-used };
   }
 
   function renderChips(usedPct) {
     const svg   = document.getElementById('rsvg');
-    const W     = svg.clientWidth || 540;
+    const W     = svg.clientWidth || 360;
     const SLOTS = CONFIG.SLOTS;
-    const gap   = 3;
-    const notch = 5;
-    const chipH = 34;
-    const pinH  = 5;
-    const pinWf = 0.55;
-    const topPad= 4;
+    const gap   = 2;
+    const notch = 3;
+    const chipH = 20;
+    const pinH  = 2;
+    const pinWf = 0.5;
+    const topPad= 2;
     const slotW = (W - gap * (SLOTS - 1)) / SLOTS;
     const usedSl = Math.round(SLOTS * usedPct / 100);
 
@@ -173,11 +162,8 @@
     renderChips(pct);
   }
 
-  async function update() { render(await fetchRAM()); }
-
-  update();
-  setInterval(update, CONFIG.INTERVAL_MS);
-  window.addEventListener('resize', () => fetchRAM().then(render));
+  render(getRAMFromURL());
+  window.addEventListener('resize', () => render(getRAMFromURL()));
   </script>
 </body>
 </html>

@@ -22,12 +22,10 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("WebKit2", "4.1")
 from gi.repository import Gdk, GLib, Gtk, WebKit2
 
-PID_FILE = "/tmp/cyber-ram-popup.pid"
-
 WINDOW_WIDTH = 400
 WINDOW_HEIGHT = 120
 
-REFRESH_MS = 2500
+REFRESH_MS = 2000
 
 
 def add_window_rule():
@@ -51,11 +49,19 @@ def add_window_rule():
             y = active["y"] + 33
             title = "^CYBERDECK RAM$"
             subprocess.run(
-                ["hyprctl", "--batch",
-                 f"keyword windowrule float,title:{title} ; "
-                 f"keyword windowrule pin,title:{title} ; "
-                 f"keyword windowrule move {x} {y},title:{title} ; "
-                 f"keyword windowrule size {WINDOW_WIDTH} {WINDOW_HEIGHT},title:{title}"],
+                ["hyprctl", "keyword", "windowrule", f"float,title:{title}"],
+                capture_output=True, text=True, timeout=5,
+            )
+            subprocess.run(
+                ["hyprctl", "keyword", "windowrule", f"pin,title:{title}"],
+                capture_output=True, text=True, timeout=5,
+            )
+            subprocess.run(
+                ["hyprctl", "keyword", "windowrule", f"move {x} {y},title:{title}"],
+                capture_output=True, text=True, timeout=5,
+            )
+            subprocess.run(
+                ["hyprctl", "keyword", "windowrule", f"size {WINDOW_WIDTH} {WINDOW_HEIGHT},title:{title}"],
                 capture_output=True, text=True, timeout=5,
             )
     except Exception:
@@ -92,9 +98,13 @@ def reposition_window():
             y = active["y"] + 33
             title = "^CYBERDECK RAM$"
             subprocess.run(
-                ["hyprctl", "--batch",
-                 f"dispatch movewindow pixel '{x} {y}',title:{title} ; "
-                 f"dispatch resizewindow pixel '{WINDOW_WIDTH} {WINDOW_HEIGHT}',title:{title}"],
+                ["hyprctl", "dispatch", "movewindowpixel",
+                 f"exact {x} {y},title:{title}"],
+                capture_output=True, text=True, timeout=5,
+            )
+            subprocess.run(
+                ["hyprctl", "dispatch", "resizewindowpixel",
+                 f"exact {WINDOW_WIDTH} {WINDOW_HEIGHT},title:{title}"],
                 capture_output=True, text=True, timeout=5,
             )
     except Exception:
@@ -102,20 +112,6 @@ def reposition_window():
 
 
 def main():
-    # ── Singleton / toggle ────────────────────────────────
-    if os.path.exists(PID_FILE):
-        with open(PID_FILE) as f:
-            old_pid = int(f.read().strip())
-        try:
-            os.kill(old_pid, 0)         # ¿sigue vivo?
-            os.kill(old_pid, 15)        # sí → lo matamos (toggle off)
-            os.remove(PID_FILE)
-            return
-        except (OSError, ProcessLookupError):
-            pass                        # muerto, seguimos
-    with open(PID_FILE, "w") as f:
-        f.write(str(os.getpid()))
-
     total, used, available = get_ram()
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -155,15 +151,17 @@ def main():
     GLib.idle_add(reposition_window)
     webview.load_uri(uri)
 
+    win.connect("destroy", Gtk.main_quit)
+
     def cleanup(*_):
-        if os.path.exists(PID_FILE):
-            with open(PID_FILE) as f:
+        pid_file = "/tmp/cyber-ram-popup.pid"
+        if os.path.exists(pid_file):
+            with open(pid_file) as f:
                 saved_pid = int(f.read().strip())
                 if saved_pid == os.getpid():
-                    os.remove(PID_FILE)
+                    os.remove(pid_file)
 
     win.connect("destroy", cleanup)
-    win.connect("destroy", Gtk.main_quit)
 
     win.show_all()
     Gtk.main()

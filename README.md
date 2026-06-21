@@ -20,6 +20,8 @@ Un módulo para [Waybar](https://github.com/Alexays/Waybar) que muestra el uso d
 | Memoria libre (juego) | Memoria casi agotada (juego) |
 |:---:|:---:|
 | ![referencia libre](assets/reference-game-free.png) | ![referencia ocupada](assets/reference-game-warning.png) |
+| **En tiempo real — baja uso** | **En tiempo real — alta uso** |
+| ![real-time-first](assets/real-time-first.png) | ![real-time-second](assets/real-time-second.png) |
 
 Esto es la réplica funcional, alimentada por datos reales de `/proc/meminfo`:
 

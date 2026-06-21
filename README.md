@@ -116,7 +116,7 @@ paru -S ttf-rajdhani          # disponible en AUR
 ### Instalación automática
 
 ```bash
-git clone https://github.com/tu-usuario/Cyber-RAM.git
+git clone https://github.com/JaviMGG/Cyber-RAM.git
 cd Cyber-RAM
 chmod +x install.sh
 ./install.sh
